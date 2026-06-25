@@ -1,0 +1,4 @@
+en:
+  site_settings:
+    chat_read_receipts_enabled: "Enable chat read receipt avatars."
+    chat_read_receipts_refresh_interval_seconds: "Seconds between chat read receipt refreshes."
