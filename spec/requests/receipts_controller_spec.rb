@@ -94,7 +94,7 @@ RSpec.describe ChatReadReceipts::ReceiptsController do
       expect(response.parsed_body.dig("receipts", message_2.id.to_s)).to eq([])
     end
 
-    it "shows each reader only on the latest current-user message they have read" do
+    it "shows each reader only on the exact current-user message they last read" do
       message_1 = Fabricate(:chat_message, chat_channel: channel, user: current_user)
       message_2 = Fabricate(:chat_message, chat_channel: channel, user: current_user)
       channel.membership_for(reader).update!(last_read_message_id: message_2.id)
@@ -106,6 +106,30 @@ RSpec.describe ChatReadReceipts::ReceiptsController do
       expect(response.parsed_body.dig("receipts", message_2.id.to_s).map { |user| user["id"] }).to eq(
         [reader.id],
       )
+    end
+
+    it "anchors a reader on the actual visible message they last read" do
+      own_message = Fabricate(:chat_message, chat_channel: channel, user: current_user)
+      actual_read_message = Fabricate(:chat_message, chat_channel: channel, user: other_sender)
+      channel.membership_for(reader).update!(last_read_message_id: actual_read_message.id)
+
+      request_receipts(message_ids: [own_message.id, actual_read_message.id])
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body.dig("receipts", own_message.id.to_s)).to eq([])
+      expect(
+        response.parsed_body.dig("receipts", actual_read_message.id.to_s).map { |user| user["id"] },
+      ).to eq([reader.id])
+    end
+
+    it "does not expose a reader for another user's message unless they read a current-user message" do
+      actual_read_message = Fabricate(:chat_message, chat_channel: channel, user: other_sender)
+      channel.membership_for(reader).update!(last_read_message_id: actual_read_message.id)
+
+      request_receipts(message_ids: [actual_read_message.id])
+
+      expect(response.status).to eq(200)
+      expect(response.parsed_body["receipts"]).to eq({})
     end
 
     it "excludes the current user from receipts" do

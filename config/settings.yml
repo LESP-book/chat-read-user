@@ -7,3 +7,8 @@ plugins:
     type: integer
     min: 1
     client: true
+  chat_read_receipts_inline_avatar_count:
+    default: 5
+    type: integer
+    min: 1
+    client: true

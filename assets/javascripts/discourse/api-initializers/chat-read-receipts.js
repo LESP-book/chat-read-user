@@ -28,9 +28,20 @@ export default apiInitializer((api) => {
     return Number(siteSettings.chat_read_receipts_refresh_interval_seconds) * 1000;
   }
 
-  function visibleOwnMessageContainers() {
+  function inlineAvatarCount() {
+    const count = Number(siteSettings.chat_read_receipts_inline_avatar_count);
+
+    if (Number.isInteger(count) && count > 0) {
+      return count;
+    }
+
+    // 设置缺失或被错误配置时只影响行内展示，完整名单仍保留在展开面板里。
+    return 5;
+  }
+
+  function visibleMessageContainers() {
     return Array.from(
-      document.querySelectorAll(".chat-message-container.is-by-current-user[data-id]")
+      document.querySelectorAll(".chat-message-container[data-id]")
     ).filter((container) => Number.isInteger(Number(container.dataset.id)));
   }
 
@@ -54,12 +65,12 @@ export default apiInitializer((api) => {
 
   function formatReadTime(value) {
     if (!value) {
-      return "Read";
+      return "已读";
     }
 
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-      return "Read";
+      return "已读";
     }
 
     return new Intl.DateTimeFormat(undefined, {
@@ -128,12 +139,24 @@ export default apiInitializer((api) => {
     trigger.type = "button";
     trigger.className = "crr-read-receipt__trigger";
     trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", `${sorted.length} 位用户已读`);
 
     const avatars = document.createElement("span");
     avatars.className = "crr-read-receipt__avatars";
-    sorted.forEach((receipt) => {
+    const visibleAvatarCount = inlineAvatarCount();
+
+    sorted.slice(0, visibleAvatarCount).forEach((receipt) => {
       avatars.appendChild(buildAvatar(receipt, "crr-read-receipt__avatar", 24));
     });
+
+    const hiddenCount = sorted.length - visibleAvatarCount;
+    if (hiddenCount > 0) {
+      const overflow = document.createElement("span");
+      overflow.className = "crr-read-receipt__overflow";
+      overflow.textContent = `+${hiddenCount}`;
+      avatars.appendChild(overflow);
+    }
+
     trigger.appendChild(avatars);
 
     const panel = document.createElement("div");
@@ -142,7 +165,7 @@ export default apiInitializer((api) => {
 
     const title = document.createElement("div");
     title.className = "crr-read-receipt__title";
-    title.textContent = "Read by";
+    title.textContent = "已读用户";
     panel.appendChild(title);
 
     const list = document.createElement("div");
@@ -178,7 +201,7 @@ export default apiInitializer((api) => {
   function renderReceipts(receiptsByMessageId) {
     const activeMessageIds = new Set();
 
-    visibleOwnMessageContainers().forEach((container) => {
+    visibleMessageContainers().forEach((container) => {
       const messageId = container.dataset.id;
       activeMessageIds.add(messageId);
 
@@ -237,7 +260,7 @@ export default apiInitializer((api) => {
     }
 
     const channelId = currentChannelId();
-    const containers = visibleOwnMessageContainers();
+    const containers = visibleMessageContainers();
 
     if (!channelId || containers.length === 0) {
       state.activeChannelId = channelId;

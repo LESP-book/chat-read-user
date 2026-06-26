@@ -25,10 +25,18 @@ module ChatReadReceipts
       return { receipts: {}, meta: meta } if own_messages.empty?
 
       receipts = {}
-      own_messages.each { |message| receipts[message.id.to_s] = [] }
+      visible_messages.each { |message| receipts[message.id.to_s] = [] }
 
-      attach_channel_receipts!(receipts, own_messages.reject { |message| thread_reply?(message) })
-      attach_thread_receipts!(receipts, own_messages.select { |message| thread_reply?(message) })
+      attach_channel_receipts!(
+        receipts,
+        visible_messages.reject { |message| thread_reply?(message) },
+        own_messages.reject { |message| thread_reply?(message) },
+      )
+      attach_thread_receipts!(
+        receipts,
+        visible_messages.select { |message| thread_reply?(message) },
+        own_messages.select { |message| thread_reply?(message) },
+      )
 
       { receipts: receipts, meta: meta }
     end
@@ -70,8 +78,10 @@ module ChatReadReceipts
       message.thread_reply?
     end
 
-    def attach_channel_receipts!(receipts, channel_messages)
-      return if channel_messages.empty?
+    def attach_channel_receipts!(receipts, channel_messages, own_channel_messages)
+      return if channel_messages.empty? || own_channel_messages.empty?
+
+      messages_by_id = channel_messages.index_by(&:id)
 
       memberships =
         ::Chat::UserChatChannelMembership
@@ -81,15 +91,17 @@ module ChatReadReceipts
           .where.not(last_read_message_id: nil)
 
       memberships.each do |membership|
-        message = latest_read_message(channel_messages, membership.last_read_message_id)
+        next if latest_read_message(own_channel_messages, membership.last_read_message_id).blank?
+
+        message = messages_by_id[membership.last_read_message_id]
         next if message.blank?
 
         receipts[message.id.to_s] << serialize_user(membership.user, membership.last_viewed_at)
       end
     end
 
-    def attach_thread_receipts!(receipts, thread_messages)
-      return if thread_messages.empty?
+    def attach_thread_receipts!(receipts, thread_messages, own_thread_messages)
+      return if thread_messages.empty? || own_thread_messages.empty?
 
       thread_ids = thread_messages.map(&:thread_id).uniq
       memberships_by_thread_id =
@@ -103,8 +115,15 @@ module ChatReadReceipts
       thread_messages.each { |message| meta[:notes][message.id.to_s] = THREAD_READ_TIMESTAMP_UNAVAILABLE }
 
       thread_messages.group_by(&:thread_id).each do |thread_id, messages|
+        own_messages = own_thread_messages.select { |message| message.thread_id == thread_id }
+        next if own_messages.empty?
+
+        messages_by_id = messages.index_by(&:id)
+
         memberships_by_thread_id.fetch(thread_id, []).each do |membership|
-          message = latest_read_message(messages, membership.last_read_message_id)
+          next if latest_read_message(own_messages, membership.last_read_message_id).blank?
+
+          message = messages_by_id[membership.last_read_message_id]
           next if message.blank?
 
           receipts[message.id.to_s] << serialize_user(membership.user, nil)
