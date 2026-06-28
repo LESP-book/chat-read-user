@@ -60,19 +60,6 @@
   }
 }
 
-.chat-message-container:not(.is-by-current-user) {
-  .crr-read-receipt {
-    justify-content: flex-start;
-    margin-right: auto;
-    margin-left: 0.75rem;
-  }
-
-  .crr-read-receipt__panel {
-    right: auto;
-    left: 0;
-  }
-}
-
 .crr-read-receipt__panel {
   position: absolute;
   right: 0;
