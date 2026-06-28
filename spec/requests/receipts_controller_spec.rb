@@ -132,6 +132,21 @@ RSpec.describe ChatReadReceipts::ReceiptsController do
       expect(response.parsed_body["receipts"]).to eq({})
     end
 
+    it "returns receipts for all visible messages when configured" do
+      SiteSetting.chat_read_receipts_show_on_all_visible_messages = true
+      actual_read_message = Fabricate(:chat_message, chat_channel: channel, user: other_sender)
+      channel
+        .membership_for(reader)
+        .update!(last_read_message_id: actual_read_message.id, last_viewed_at: 1.minute.ago)
+
+      request_receipts(message_ids: [actual_read_message.id])
+
+      expect(response.status).to eq(200)
+      reader_ids =
+        response.parsed_body.dig("receipts", actual_read_message.id.to_s).map { |user| user["id"] }
+      expect(reader_ids).to eq([reader.id])
+    end
+
     it "excludes the current user from receipts" do
       message = Fabricate(:chat_message, chat_channel: channel, user: current_user)
       channel.membership_for(current_user).update!(last_read_message_id: message.id)

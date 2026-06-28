@@ -12,3 +12,5 @@ plugins:
     type: integer
     min: 1
     client: true
+  chat_read_receipts_show_on_all_visible_messages:
+    default: false

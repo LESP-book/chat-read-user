@@ -3,3 +3,4 @@ en:
     chat_read_receipts_enabled: "Enable chat read receipt avatars."
     chat_read_receipts_refresh_interval_seconds: "Seconds between chat read receipt refreshes."
     chat_read_receipts_inline_avatar_count: "Number of read receipt avatars shown before folding the rest into a count."
+    chat_read_receipts_show_on_all_visible_messages: "Show read receipt avatars on all chat messages visible to the current user, instead of only on messages sent by the current user."

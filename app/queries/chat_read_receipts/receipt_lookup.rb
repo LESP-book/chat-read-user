@@ -21,8 +21,8 @@ module ChatReadReceipts
 
       ensure_messages_belong_to_channel!
 
-      own_messages = visible_messages.select { |message| message.user_id == current_user.id }
-      return { receipts: {}, meta: meta } if own_messages.empty?
+      receipt_eligible_messages = visible_messages.select { |message| show_receipts_for_message?(message) }
+      return { receipts: {}, meta: meta } if receipt_eligible_messages.empty?
 
       receipts = {}
       visible_messages.each { |message| receipts[message.id.to_s] = [] }
@@ -30,12 +30,12 @@ module ChatReadReceipts
       attach_channel_receipts!(
         receipts,
         visible_messages.reject { |message| thread_reply?(message) },
-        own_messages.reject { |message| thread_reply?(message) },
+        receipt_eligible_messages.reject { |message| thread_reply?(message) },
       )
       attach_thread_receipts!(
         receipts,
         visible_messages.select { |message| thread_reply?(message) },
-        own_messages.select { |message| thread_reply?(message) },
+        receipt_eligible_messages.select { |message| thread_reply?(message) },
       )
 
       { receipts: receipts, meta: meta }
@@ -76,6 +76,10 @@ module ChatReadReceipts
 
     def thread_reply?(message)
       message.thread_reply?
+    end
+
+    def show_receipts_for_message?(message)
+      SiteSetting.chat_read_receipts_show_on_all_visible_messages || message.user_id == current_user.id
     end
 
     def attach_channel_receipts!(receipts, channel_messages, own_channel_messages)
